@@ -1,0 +1,17 @@
+{
+    "name": "eru123/linker-template",
+    "description": "Linker Project",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "eru123",
+            "email": "yeoligoakino@email.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "php": "^8.0",
+        "eru123/linker": "^1.22"
+    }
+}
