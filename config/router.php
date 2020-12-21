@@ -47,7 +47,13 @@ return [
     // Example original path: public/notfound.php 
     // Example 404 page path: notfound.php
     // Type: String || NULL
-    "error" => NULL
+    "error" => "error.php",
+
+    // File exclusion
+    // Array values must be a string 
+    // Array values is REGEX format
+    // Type: Array
+    "exclude" => []
     
 ];
 
