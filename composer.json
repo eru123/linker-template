@@ -12,6 +12,6 @@
     "minimum-stability": "stable",
     "require": {
         "php": "^7.4||^8.0",
-        "eru123/linker": "^1.31"
+        "eru123/linker": "^1.32"
     }
 }
