@@ -11,6 +11,7 @@ return [
     "core"      => __DIR__,
 
     // FILES 
-    "autoload"  => __DIR__."/../vendor/autoload.php"
-
+    "composer"  => __DIR__."/../composer.json",
+    "autoload"  => __DIR__."/../vendor/autoload.php",
+    "vendor"    => __DIR__."/../vendor.phar"
 ];

@@ -1,0 +1,213 @@
+#!/usr/bin/env php
+<?php
+
+require_once __DIR__."/vendor/autoload.php";
+
+use \Linker\FileSystem\FileSystem as FS;
+
+/* Do not execute via Server */
+if (PHP_SAPI !== 'cli') {
+    header('Content-Type: text/plain; charset=utf-8', true, 500);
+    echo 'You have to execute via php-cli.' . PHP_EOL;
+    exit(1);
+} else FS::mkdir("dist");
+
+function xcopy(string $from,string $to,bool $debug = false){
+    $to = rtrim($to,"/")."/";
+
+    FS::mkdir($to);
+    $top = $to.basename($from);
+
+    if(is_file($from)){
+        if($debug === true) echo "Copying $top... ";
+        $res = copy($from,$top);
+        if($debug === true) echo ($res ? 'OK' : 'FAILED').PHP_EOL;
+    } elseif(is_dir($from)){
+        if($debug === true) echo "Copying $top... ";
+        $res = FS::mkdir($top);
+        if($debug === true) echo ($res ? 'OK' : 'FAILED').PHP_EOL;
+        foreach(FS::scandir($from) as $frd) xcopy($frd,$top,$debug);
+    } else {
+        if($debug === true) echo "Copying $from ... INVALID";
+    }
+}
+
+/* Utility functions */
+function prompt_bool($message)
+{
+    while (true) {
+        fwrite(STDERR, "$message [y/n]: ");
+        if (false === $input = fgets(STDIN)) {
+            error('Unexpected EOF.');
+        }
+        $input = strtolower(trim($input));
+        if ($input === 'y') {
+            return true;
+        }
+        if ($input === 'n') {
+            return false;
+        }
+    }
+}
+function error($message)
+{
+    fwrite(STDERR, "Error: $message" . PHP_EOL);
+    usage();
+    exit(1);
+}
+function usage()
+{
+    fwrite(STDERR, "Usage: {$_SERVER['argv'][0]} [options]" . PHP_EOL);
+    fwrite(STDERR, "Options:" . PHP_EOL);
+    fwrite(STDERR, "  -h, --help             Show help." . PHP_EOL);
+    fwrite(STDERR, "  -v, --verbose          Verbose output." . PHP_EOL);
+    fwrite(STDERR, "  -o, --out <value>      Output archive name. Default to \"vendor.phar\"." . PHP_EOL);
+    fwrite(STDERR, "  -d, --dir <value>      Project root directory. Default to getcwd()." . PHP_EOL);
+    fwrite(STDERR, "      --yes              Without confirmation." . PHP_EOL);
+}
+function recurse($path)
+{
+    $flags = \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::CURRENT_AS_PATHNAME;
+    return new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($path, $flags));
+}
+
+/* Parse options */
+$opts = getopt('hvo:d:', array(
+    'verbose'
+));
+$outfile = "vendor.phar";
+$outdir = "dist";
+$projdir = isset($opts['dir']) ? $opts['dir'] : (isset($opts['d']) ? $opts['d'] : getcwd());
+$help = false;
+$verbose = true;
+$yes = true;
+
+/* Validate phar settings */
+if (ini_get('phar.readonly') || ini_get('phar.require_hash')) {
+    error('Permission denied: Disable "phar.readonly" and "phar.require_hash"');
+}
+
+/* Check help option */
+if ($help) {
+    usage();
+    exit(0);
+}
+
+/* Validate output directory */
+if (!is_dir($outdir)) {
+    error("No such directory(-o, --out): $outdir");
+}
+if (false === $realpath = realpath($outdir)) {
+    error("Failed to resolve realpath(-o, --out): $outdir");
+}
+$outdir = $realpath;
+
+/* Validate project directory */
+if (!is_dir($projdir)) {
+    error("No such directory(-d, --dir): $projdir");
+}
+if (false === $realpath = realpath($projdir)) {
+    error("Failed to resolve realpath(-d, --dir): $projdir");
+}
+$projdir = $realpath;
+
+/* Validate composer.json */
+$json_path = $projdir . DIRECTORY_SEPARATOR . 'composer.json';
+if (!is_file($json_path)) {
+    error("No required file: $json_path");
+}
+if (null === $json = json_decode(file_get_contents($json_path))) {
+    error("Broken JSON: $json_path");
+}
+
+/* Validate vendor-dir */
+$vendor = isset($json->config->{'vendor-dir'}) ? $json->config->{'vendor-dir'} : 'vendor';
+$vendor_path = $projdir . DIRECTORY_SEPARATOR . $vendor;
+if (!is_dir($vendor_path)) {
+    fwrite(STDERR, "Error: No required directory: $vendor_path" . PHP_EOL);
+    fwrite(STDERR, 'Hint:  Run "composer install" at the project root directory.' . PHP_EOL);
+    usage();
+    exit(1);
+}
+if (false === $realpath = realpath($vendor_path)) {
+    error("Failed to resolve realpath: $vendor_path");
+}
+$vendor_path = $realpath;
+
+/* Apply vendor-dir basename as archive name */
+if ($outfile === null) {
+    $outfile = $outdir . DIRECTORY_SEPARATOR . basename($vendor_path) . '.phar';
+} else {
+    $outfile = $outdir . DIRECTORY_SEPARATOR . basename($outfile);
+}
+
+/* Validate autoloader */
+$loader_path = $vendor_path . DIRECTORY_SEPARATOR . 'autoload.php';
+if (!is_file($loader_path)) {
+    error("No required file: $loader_path");
+}
+
+/* Confirmation */
+if (!$yes && !prompt_bool(
+    'Project directory: ' . $projdir . '' . PHP_EOL .
+    'Output filename: ' . $outfile . PHP_EOL .
+    'Continue?'
+)) {
+    exit(1);
+}
+if (file_exists($outfile)) {
+    if (!$yes && !prompt_bool(
+        'Already exists: ' . $outfile . PHP_EOL .
+        'Remove it?'
+    )) {
+        exit(1);
+    }
+    $do = is_link($outfile) || is_file($outfile) ? 'unlink' : 'rmdir';
+    if (@!$do($outfile)) {
+        $error = error_get_last();
+        error($error['message']);
+    }
+}
+
+/* Create phar archive */
+$phar = new \Phar($outfile, 0, basename($outfile));
+$loader_escaped = addcslashes(str_replace('\\', '/', substr($loader_path, strlen($projdir))), "\\'");
+$phar->setStub("<?php
+/*
+ * Generated by Linker Framework
+ *
+ * https://github.com/eru123/linker
+ */
+return require 'phar://' . __FILE__ . '$loader_escaped';
+__HALT_COMPILER(); ?>");
+
+if (!$verbose) {
+    $phar->buildFromDirectory($projdir);
+} else {
+    foreach (recurse($projdir) as $entry) {
+        $phar->addFile($entry, substr($entry, strlen($projdir)));
+        fwrite(STDERR, "Added: $entry" . PHP_EOL);
+    }
+}
+
+$current_dir = __DIR__;
+
+foreach(FS::scandir($current_dir) as $f){
+    $ff = ltrim(str_replace($current_dir,"",$f),"/");
+    $exclude = [
+        "vendor",
+        ".git",
+        "dist",
+        "composer.lock",
+        ".gitignore",
+        "test.php",
+        "tes.php",
+        "compile",
+        "README.md"
+    ];
+    $is = false;
+    foreach($exclude as $iss) if($ff == $iss) $is = true;
+    if($is === false) {
+        xcopy($ff,"dist",true);
+    }
+}

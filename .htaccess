@@ -6,19 +6,18 @@
     RewriteEngine On
 
     # Handle Front Controller...
-    RewriteRule ^ index.php [L]
+    RewriteRule ^(.*) index.php [L]
+    RewriteRule ^(.*)\.phar$ - [F]
 
+    # Disable indexing
     Options -Indexes
     IndexIgnore *
     DirectoryIndex index.php
 
     # Forbidden Files
-    <Files .*>
-        Require all denied
-    </Files>
-    
-    <Files composer.*>
-        Require all denied
-    </Files>
+    <FilesMatch "^index\.php$">
+        Allow from all
+    </FilesMatch>
 
+    
 </IfModule>
