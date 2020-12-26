@@ -8,6 +8,6 @@ return [
 
     // Use Frecbase Keyval
     // Type: boolean
-    "keyval" => TRUE
+    "keyval" => FALSE
 
 ];

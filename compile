@@ -12,26 +12,6 @@ if (PHP_SAPI !== 'cli') {
     exit(1);
 } else FS::mkdir("dist");
 
-function xcopy(string $from,string $to,bool $debug = false){
-    $to = rtrim($to,"/")."/";
-
-    FS::mkdir($to);
-    $top = $to.basename($from);
-
-    if(is_file($from)){
-        if($debug === true) echo "Copying $top... ";
-        $res = copy($from,$top);
-        if($debug === true) echo ($res ? 'OK' : 'FAILED').PHP_EOL;
-    } elseif(is_dir($from)){
-        if($debug === true) echo "Copying $top... ";
-        $res = FS::mkdir($top);
-        if($debug === true) echo ($res ? 'OK' : 'FAILED').PHP_EOL;
-        foreach(FS::scandir($from) as $frd) xcopy($frd,$top,$debug);
-    } else {
-        if($debug === true) echo "Copying $from ... INVALID";
-    }
-}
-
 /* Utility functions */
 function prompt_bool($message)
 {
@@ -208,6 +188,6 @@ foreach(FS::scandir($current_dir) as $f){
     $is = false;
     foreach($exclude as $iss) if($ff == $iss) $is = true;
     if($is === false) {
-        xcopy($ff,"dist",true);
+        FS::copy($ff,"dist",true);
     }
 }

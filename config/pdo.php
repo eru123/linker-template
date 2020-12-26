@@ -40,10 +40,10 @@ return [
     "schema" => [],
 
     // Database Schema method
-    // Choices (normal|force|dynamic) default - dynamic
+    // Choices [normal|force|dynamic(experimental - do not use on production)] default - dynamic
     // Executed when schema is not an emtpy array
     // Be careful using dynamic method, it can alter your selected tables
     // that is specified on your schema
     // Type: String
-    "schema_method" => "dynamic"
+    "schema_method" => "normal"
 ];
