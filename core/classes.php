@@ -14,5 +14,5 @@ return [
     "QUERY"             => \Linker\Request\Query::class,
     "URI"               => \Linker\Request\URI::class,
     "PDO"               => \Linker\Database\PDO::class,
-    "PDOMODEL"          => \Linker\Database\PDO\Model::class
+    "PDOMODEL"          => \Linker\PDO\Model::class
 ];
